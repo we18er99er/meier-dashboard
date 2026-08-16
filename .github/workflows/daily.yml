@@ -1,0 +1,45 @@
+name: Dashboard taeglich aktualisieren
+
+on:
+  schedule:
+    - cron: '12 6 * * *'   # 06:12 UTC = ~08:12 Uhr deutscher Zeit
+  workflow_dispatch:        # erlaubt manuelles Starten per Knopf
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zahlen holen und Seite bauen
+        env:
+          GA_SA_KEY: ${{ secrets.GA_SA_KEY }}
+        run: |
+          node fetch-all.js
+          node generate.js
+          mkdir -p _site
+          cp dashboard.html _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

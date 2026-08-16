@@ -1,0 +1,7 @@
+# NIEMALS den geheimen Schlüssel oder generierte Dateien einchecken
+sa-key.json
+data.json
+dashboard.html
+_site/
+node_modules/
+*.log
