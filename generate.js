@@ -88,7 +88,9 @@ function topPageRows() {
   ).join('');
 }
 
-const html = `<title>Meier Marketing-Cockpit</title>
+const html = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meier Marketing-Cockpit</title>
 <style>
   :root{
     --bg:#eef2f5; --card:#ffffff; --ink:#152230; --muted:#5b6b7a; --line:#dce4ea;
@@ -123,7 +125,7 @@ const html = `<title>Meier Marketing-Cockpit</title>
   h2{font-size:1.06rem;margin:34px 0 12px;display:flex;align-items:center;gap:9px}
   h2 .em{width:5px;height:20px;border-radius:3px;background:var(--primary);display:inline-block}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 17px;box-shadow:var(--shadow)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 17px;box-shadow:var(--shadow);overflow-x:auto}
   .kpi .label{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:7px;margin-bottom:4px}
   .kpi .big{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1.1}
   .kpi .row2{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
@@ -135,7 +137,7 @@ const html = `<title>Meier Marketing-Cockpit</title>
   .tr-down{color:var(--red);background:var(--red-bg)}
   .tr-flat{color:var(--muted);background:var(--line)}
   .muted{color:var(--muted)}
-  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:420px}
   th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
   th{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
@@ -154,6 +156,18 @@ const html = `<title>Meier Marketing-Cockpit</title>
   footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:8px}
   .legend span{display:flex;align-items:center;gap:6px}
+  @media (max-width:600px){
+    .wrap{padding:18px 13px 48px}
+    h1{font-size:1.32rem}
+    .sub{font-size:.84rem}
+    h2{font-size:1rem;margin:28px 0 10px}
+    .kpi .big{font-size:1.75rem}
+    .per .v{font-size:1.35rem}
+    .card{padding:14px 14px;border-radius:12px}
+    th,td{padding:8px 8px}
+    .barcell{width:26%}
+    .legend{gap:10px 14px}
+  }
 </style>
 
 <div class="wrap">
