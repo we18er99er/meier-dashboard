@@ -135,7 +135,7 @@ async function ga4Leads(token, from, to) {
         page: r.keys[0], clicks: r.clicks, impressions: r.impressions,
       })),
     },
-    ads: { status: 'pending', note: 'Wartet auf Entwickler-Token-Freischaltung (Stufe 2).' },
+    ads: { status: 'manual', note: 'Die Zahlen zu deinen Google-Ads-Kampagnen (Wärmepumpe & Bad) werden vorerst manuell eingetragen. Die automatische Anbindung ist derzeit nicht möglich (Google lässt das dafür nötige Verwaltungskonto aktuell nicht anlegen). Deine Kampagnen liefern ohnehin erst ab Mitte August erste Zahlen.' },
   };
 
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data, null, 2));

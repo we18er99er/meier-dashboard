@@ -90,6 +90,7 @@ function topPageRows() {
 
 const html = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){try{var t=localStorage.getItem('meier-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
 <title>Meier Marketing-Cockpit</title>
 <style>
   :root{
@@ -120,6 +121,8 @@ const html = `<meta charset="utf-8">
   .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 64px}
   header.top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
   h1{font-size:1.6rem;margin:0;letter-spacing:-.02em}
+  .themebtn{background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:20px;padding:6px 13px;font-size:.82rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+  .themebtn:hover{border-color:var(--primary)}
   .sub{color:var(--muted);font-size:.9rem;margin:0 0 24px}
   .sub b{color:var(--ink)}
   h2{font-size:1.06rem;margin:34px 0 12px;display:flex;align-items:center;gap:9px}
@@ -173,6 +176,7 @@ const html = `<meta charset="utf-8">
 <div class="wrap">
   <header class="top">
     <h1>Marketing-Überblick — Meier Sanitär</h1>
+    <button id="themeBtn" class="themebtn" type="button" aria-label="Hell oder Dunkel umschalten">☾ Dunkel</button>
   </header>
   <p class="sub">Automatisch aktualisiert · Stand: <b>${dt(d.generatedAt)}</b> Uhr &nbsp;·&nbsp; Quellen: Google Analytics + Google Search Console</p>
 
@@ -250,7 +254,7 @@ const html = `<meta charset="utf-8">
 
   <h2><span class="em"></span>Google Ads (Anzeigen)</h2>
   <div class="card pending">
-    <p style="margin:0">⏳ <b>In Vorbereitung (Stufe 2).</b> ${d.ads.note} Sobald Google den Zugang freischaltet, erscheinen hier automatisch Klicks, Kosten und Kosten pro Anfrage deiner Kampagnen (Wärmepumpe &amp; Bad).</p>
+    <p style="margin:0">📌 <b>Wird von Hand ergänzt.</b> ${d.ads.note}</p>
   </div>
 
   <h2><span class="em"></span>Kleines Wörterbuch</h2>
@@ -269,6 +273,20 @@ const html = `<meta charset="utf-8">
     <p>Erstellt: ${dt(d.generatedAt)} Uhr.</p>
   </footer>
 </div>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  function current(){ return root.getAttribute('data-theme')==='dark' ? 'dark' : 'light'; }
+  function updateBtn(){ btn.textContent = current()==='dark' ? '☀ Hell' : '☾ Dunkel'; }
+  updateBtn();
+  btn.addEventListener('click', function(){
+    var next = current()==='dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try{ localStorage.setItem('meier-theme', next); }catch(e){}
+    updateBtn();
+  });
+})();
+</script>
 `;
 
 fs.writeFileSync(path.join(__dirname, 'dashboard.html'), html);
