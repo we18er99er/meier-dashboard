@@ -32,6 +32,7 @@ jobs:
           node generate.js
           mkdir -p _site
           cp dashboard.html _site/index.html
+          cp stax-icon.svg stax-icon-vollflaechig.svg stax-icon-maskable.svg stax-manifest.webmanifest sw.js _site/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

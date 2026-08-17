@@ -1,0 +1,14 @@
+{
+  "name": "STAX",
+  "short_name": "STAX",
+  "description": "Marketing-Statistik von Stefan Meier Bad & Heizung",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#dcad61",
+  "theme_color": "#2f2f2f",
+  "icons": [
+    { "src": "stax-icon-vollflaechig.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "stax-icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

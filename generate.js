@@ -114,11 +114,18 @@ function renderAds() {
     <table><thead><tr><th>Kampagne</th><th class="num">Klicks 28T</th><th class="num">Kosten 28T</th><th class="num">Ø/Klick</th><th class="num">Klicks 7T</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </div>
-  <div class="note">Enthält auch <b>alte, pausierte Kampagnen</b> (JFM, Leads-Search) — deren Zahlen laufen in den nächsten Wochen aus. Deine neuen Kampagnen sind <b>„Wärmepumpe & Heizung"</b> und <b>„Bad | Suche"</b>. Die <b>Anfragen über Ads</b> stehen noch auf 0, weil das Conversion-Tracking noch eingerichtet wird — Klicks und Kosten stimmen aber. Stand der Ads-Zahlen: ${a.stand}.</div>`;
+  <div class="note">Zeigt nur deine <b>aktiven</b> Kampagnen (pausierte werden ausgeblendet). Die <b>Anfragen über Ads</b> stehen noch auf 0, weil das Conversion-Tracking noch eingerichtet wird — Klicks und Kosten stimmen aber. Stand der Ads-Zahlen: ${a.stand}.</div>`;
 }
 
 const html = `<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="stax-icon.svg">
+<link rel="manifest" href="stax-manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="STAX">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2f2f2f">
+<link rel="apple-touch-icon" href="stax-icon-vollflaechig.svg">
 <script>(function(){try{var t=localStorage.getItem('meier-theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
 <title>Meier Marketing-Cockpit</title>
 <style>
@@ -314,6 +321,7 @@ const html = `<meta charset="utf-8">
   });
 })();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');</script>
 `;
 
 fs.writeFileSync(path.join(__dirname, 'dashboard.html'), html);
