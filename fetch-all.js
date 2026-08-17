@@ -90,7 +90,16 @@ async function fetchAds(token) {
     const j = await res.json();
     if (j.error || !j.values) return { status: 'pending', note: 'Ads-Daten noch nicht verfügbar (Tabelle leer).' };
     const vals = j.values;
-    const stand = (vals[0] && vals[0][1]) ? String(vals[0][1]) : '';
+    const rawStand = vals[0] && vals[0][1];
+    // Google Sheets liefert Datum/Zeit als Serien-Zahl (Tage seit 1899-12-30) -> in lesbares Datum wandeln.
+    let stand = '';
+    if (typeof rawStand === 'number') {
+      const ms = Math.round((rawStand - 25569) * 86400000);
+      const dd = new Date(ms), p = (n) => String(n).padStart(2, '0');
+      stand = `${dd.getUTCFullYear()}-${p(dd.getUTCMonth() + 1)}-${p(dd.getUTCDate())} ${p(dd.getUTCHours())}:${p(dd.getUTCMinutes())}`;
+    } else if (rawStand) {
+      stand = String(rawStand);
+    }
     const camps = [];
     for (let i = 3; i < vals.length; i++) {
       const r = vals[i];
