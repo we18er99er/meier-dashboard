@@ -79,10 +79,46 @@ async function ga4Leads(token, from, to) {
   return { total, byEvent: map };
 }
 
+// Liest die Google-Tabelle "Meier Ads Daten", die das Google-Ads-Skript taeglich befuellt.
+const ADS_SHEET_ID = '1H9QwjIKgG89hQIoS05RTU70v-tFHoJ2sV1lUaaBdxiU';
+async function fetchAds(token) {
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${ADS_SHEET_ID}/values/A1:H60?valueRenderOption=UNFORMATTED_VALUE`,
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    const j = await res.json();
+    if (j.error || !j.values) return { status: 'pending', note: 'Ads-Daten noch nicht verfügbar (Tabelle leer).' };
+    const vals = j.values;
+    const stand = (vals[0] && vals[0][1]) ? String(vals[0][1]) : '';
+    const camps = [];
+    for (let i = 3; i < vals.length; i++) {
+      const r = vals[i];
+      if (!r || !r[0]) continue;
+      camps.push({
+        name: String(r[0]),
+        clicks28: num(r[1]), impr28: num(r[2]), cost28: num(r[3]), conv28: num(r[4]),
+        clicks7: num(r[5]), cost7: num(r[6]), conv7: num(r[7]),
+      });
+    }
+    const sum = (k) => camps.reduce((s, c) => s + (c[k] || 0), 0);
+    return {
+      status: 'live',
+      stand,
+      campaigns: camps,
+      total28: { clicks: sum('clicks28'), impr: sum('impr28'), cost: sum('cost28'), conv: sum('conv28') },
+      total7: { clicks: sum('clicks7'), cost: sum('cost7'), conv: sum('conv7') },
+    };
+  } catch (e) {
+    return { status: 'pending', note: 'Ads-Daten konnten nicht gelesen werden: ' + e.message };
+  }
+}
+
 (async () => {
   const token = await getAccessToken([
     'https://www.googleapis.com/auth/analytics.readonly',
     'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
   ]);
 
   const gaMetrics = ['totalUsers', 'sessions', 'screenPageViews'];
@@ -114,6 +150,8 @@ async function ga4Leads(token, from, to) {
     scQuery(token, { startDate: iso(daysAgo(30)), endDate: iso(daysAgo(3)), dimensions: ['page'], rowLimit: 6 }),
   ]);
 
+  const ads = await fetchAds(token);
+
   const data = {
     generatedAt: new Date().toISOString(),
     dateInfo: {
@@ -135,7 +173,7 @@ async function ga4Leads(token, from, to) {
         page: r.keys[0], clicks: r.clicks, impressions: r.impressions,
       })),
     },
-    ads: { status: 'manual', note: 'Die Zahlen zu deinen Google-Ads-Kampagnen (Wärmepumpe & Bad) werden vorerst manuell eingetragen. Die automatische Anbindung ist derzeit nicht möglich (Google lässt das dafür nötige Verwaltungskonto aktuell nicht anlegen). Deine Kampagnen liefern ohnehin erst ab Mitte August erste Zahlen.' },
+    ads,
   };
 
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data, null, 2));
@@ -144,4 +182,5 @@ async function ga4Leads(token, from, to) {
   console.log('Anfragen 28T:', leads28.total, JSON.stringify(leads28.byEvent));
   console.log('SC Klicks 28T:', sc28.clicks, '| Impressionen:', sc28.impressions);
   console.log('Kanäle:', channels.map((c) => c.key + '=' + c.value).join(', '));
+  console.log('Ads:', ads.status, ads.status === 'live' ? ('Kampagnen=' + ads.campaigns.length + ' Klicks28=' + ads.total28.clicks + ' Kosten28=' + ads.total28.cost.toFixed(2)) : (ads.note || ''));
 })().catch((e) => { console.error('FEHLER:', e.message); process.exit(1); });

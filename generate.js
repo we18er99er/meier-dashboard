@@ -5,6 +5,7 @@ const d = require('./data.json');
 
 const nf = (n) => new Intl.NumberFormat('de-DE').format(Math.round(n || 0));
 const pf1 = (n) => new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
+const eur = (n) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n || 0);
 const dt = (isoStr) => new Date(isoStr).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const dateOnly = (s) => new Date(s).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -86,6 +87,34 @@ function topPageRows() {
   return ga.topPages.slice(0, 6).map((p) =>
     `<tr><td>${p.key}</td><td class="num">${nf(p.value)}</td></tr>`
   ).join('');
+}
+
+function renderAds() {
+  const a = d.ads;
+  if (!a || a.status !== 'live' || !a.campaigns || !a.campaigns.length) {
+    return `<div class="card pending"><p style="margin:0">📌 <b>Wird ergänzt.</b> ${(a && a.note) || 'Ads-Daten folgen.'}</p></div>`;
+  }
+  const t28 = a.total28, t7 = a.total7;
+  const cpc = t28.clicks ? t28.cost / t28.clicks : 0;
+  const cpl = t28.conv ? t28.cost / t28.conv : null;
+  const camps = a.campaigns.slice().sort((x, y) => y.cost28 - x.cost28);
+  const rows = camps.map((c) => {
+    const ccpc = c.clicks28 ? c.cost28 / c.clicks28 : 0;
+    return `<tr><td>${c.name}</td><td class="num">${nf(c.clicks28)}</td><td class="num">${eur(c.cost28)}</td><td class="num">${eur(ccpc)}</td><td class="num">${nf(c.clicks7)}</td></tr>`;
+  }).join('');
+  return `
+  <div class="grid">
+    <div class="card kpi"><div class="label">Klicks · letzte 28 Tage</div><div class="big">${nf(t28.clicks)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.clicks)} in den letzten 7 Tagen</span></div><div class="expl">Klicks auf deine Anzeigen.</div></div>
+    <div class="card kpi"><div class="label">Kosten · letzte 28 Tage</div><div class="big">${eur(t28.cost)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${eur(t7.cost)} in den letzten 7 Tagen</span></div><div class="expl">Ausgaben für Anzeigen.</div></div>
+    <div class="card kpi"><div class="label">Ø Kosten pro Klick</div><div class="big">${eur(cpc)}</div><div class="expl">Was dich ein Klick im Schnitt kostet.</div></div>
+    <div class="card kpi"><div class="label">Anfragen über Ads</div><div class="big">${nf(t28.conv)}</div><div class="expl">${cpl ? ('Ø ' + eur(cpl) + ' pro Anfrage.') : 'Noch keine gemessen (Tracking in Arbeit).'}</div></div>
+  </div>
+  <h2 style="margin-top:22px"><span class="em"></span>Kampagnen im Detail <span class="muted" style="font-weight:400;font-size:.85rem">(letzte 28 Tage)</span></h2>
+  <div class="card scroll">
+    <table><thead><tr><th>Kampagne</th><th class="num">Klicks 28T</th><th class="num">Kosten 28T</th><th class="num">Ø/Klick</th><th class="num">Klicks 7T</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+  </div>
+  <div class="note">Enthält auch <b>alte, pausierte Kampagnen</b> (JFM, Leads-Search) — deren Zahlen laufen in den nächsten Wochen aus. Deine neuen Kampagnen sind <b>„Wärmepumpe & Heizung"</b> und <b>„Bad | Suche"</b>. Die <b>Anfragen über Ads</b> stehen noch auf 0, weil das Conversion-Tracking noch eingerichtet wird — Klicks und Kosten stimmen aber. Stand der Ads-Zahlen: ${a.stand}.</div>`;
 }
 
 const html = `<meta charset="utf-8">
@@ -253,9 +282,7 @@ const html = `<meta charset="utf-8">
   <div class="note"><b>Wichtig zu verstehen:</b> Die meisten Klicks kommen über deinen <b>Namen</b> („Stefan Meier", „Meier Eichstetten"). Das ist top für Bekanntheit, heißt aber: Bei allgemeinen Suchen wie „Bad sanieren" oder „Wärmepumpe" wirst du noch selten gefunden. Genau da setzen die neuen Google-Ads-Kampagnen an — und langfristig die Suchmaschinen-Optimierung.</div>
 
   <h2><span class="em"></span>Google Ads (Anzeigen)</h2>
-  <div class="card pending">
-    <p style="margin:0">📌 <b>Wird von Hand ergänzt.</b> ${d.ads.note}</p>
-  </div>
+  ${renderAds()}
 
   <h2><span class="em"></span>Kleines Wörterbuch</h2>
   <div class="card gloss">
