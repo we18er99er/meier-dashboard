@@ -1,8 +1,20 @@
 name: Dashboard taeglich aktualisieren
 
 on:
+  # GitHub fuehrt Zeitplaene nur "nach Moeglichkeit" aus. Im August 2026 kamen die Laeufe
+  # erst 45-115 Min zu spaet, am 27.08. um 11 Std, am 28.08. gar nicht -- das Dashboard war
+  # dann einen ganzen Tag alt. Deshalb mehrere Anlaeufe ueber den Tag verteilt: faellt einer
+  # aus, faengt der naechste es auf.
+  #
+  # Warum NICHT stuendlich: Die Daten aendern sich nur einmal taeglich. Das Ads-Script
+  # schreibt zwischen 04:00-05:00 UTC ins Sheet, GA4 liefert Zahlen bis "gestern",
+  # Search Console hinkt drei Tage hinterher. 24 Laeufe wuerden 23-mal dasselbe bauen --
+  # und im Fehlerfall 24 Meldungen pro Tag erzeugen, in denen ein echtes Problem untergeht.
   schedule:
-    - cron: '12 6 * * *'   # 06:12 UTC = ~08:12 Uhr deutscher Zeit
+    - cron: '12 6 * * *'    # 06:12 UTC = ~08:12 DE -- Hauptlauf, nach dem Ads-Script
+    - cron: '12 9 * * *'    # ~11:12 DE -- faengt einen verschluckten Hauptlauf auf
+    - cron: '12 13 * * *'   # ~15:12 DE
+    - cron: '12 17 * * *'   # ~19:12 DE -- letzte Chance des Tages
   workflow_dispatch:        # erlaubt manuelles Starten per Knopf
   push:
     branches: [main]        # bei Code-Aenderungen sofort neu veroeffentlichen
@@ -20,8 +32,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Zahlen holen und Seite bauen
@@ -33,7 +45,7 @@ jobs:
           mkdir -p _site
           cp dashboard.html _site/index.html
           cp stax-icon.svg stax-icon-vollflaechig.svg stax-icon-maskable.svg stax-manifest.webmanifest sw.js _site/
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
@@ -45,4 +57,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
