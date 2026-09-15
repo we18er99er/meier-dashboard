@@ -53,10 +53,11 @@ const leadLabel = {
   'bad_angebot_absenden': 'Bad-Angebot abgeschickt',
   'termin_bad_ausstellung': 'Termin Bad-Ausstellung gebucht',
   'termin_heizung_infoabend': 'Termin Heizung/Infoabend gebucht',
+  'thementag_anmeldung': 'Anmeldung Thementage',
   'telefon_click': 'Auf Telefonnummer geklickt',
   'mail_click': 'Auf E-Mail-Adresse geklickt',
 };
-const leadOrder = ['bad_angebot_absenden', 'termin_bad_ausstellung', 'termin_heizung_infoabend', 'telefon_click', 'mail_click'];
+const leadOrder = ['thementag_anmeldung', 'bad_angebot_absenden', 'termin_bad_ausstellung', 'termin_heizung_infoabend', 'telefon_click', 'mail_click'];
 
 function channelRows() {
   return ga.channels.map((c) => {
@@ -107,14 +108,49 @@ function renderAds() {
     <div class="card kpi"><div class="label">Klicks · letzte 28 Tage</div><div class="big">${nf(t28.clicks)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.clicks)} in den letzten 7 Tagen</span></div><div class="expl">Klicks auf deine Anzeigen.</div></div>
     <div class="card kpi"><div class="label">Kosten · letzte 28 Tage</div><div class="big">${eur(t28.cost)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${eur(t7.cost)} in den letzten 7 Tagen</span></div><div class="expl">Ausgaben für Anzeigen.</div></div>
     <div class="card kpi"><div class="label">Ø Kosten pro Klick</div><div class="big">${eur(cpc)}</div><div class="expl">Was dich ein Klick im Schnitt kostet.</div></div>
-    <div class="card kpi"><div class="label">Anfragen über Ads</div><div class="big">${nf(t28.conv)}</div><div class="expl">${cpl ? ('Ø ' + eur(cpl) + ' pro Anfrage.') : 'Noch keine gemessen (Tracking in Arbeit).'}</div></div>
+    <div class="card kpi"><div class="label">Anfragen über Ads</div><div class="big">${nf(t28.conv)}</div><div class="expl">${cpl ? ('Ø ' + eur(cpl) + ' pro Anfrage.') : 'In diesem Zeitraum keine gemessen.'}</div></div>
   </div>
   <h2 style="margin-top:22px"><span class="em"></span>Kampagnen im Detail <span class="muted" style="font-weight:400;font-size:.85rem">(letzte 28 Tage)</span></h2>
   <div class="card scroll">
     <table><thead><tr><th>Kampagne</th><th class="num">Klicks 28T</th><th class="num">Kosten 28T</th><th class="num">Ø/Klick</th><th class="num">Klicks 7T</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </div>
-  <div class="note">Zeigt nur deine <b>aktiven</b> Kampagnen (pausierte werden ausgeblendet). Die <b>Anfragen über Ads</b> stehen noch auf 0, weil das Conversion-Tracking noch eingerichtet wird — Klicks und Kosten stimmen aber. Stand der Ads-Zahlen: ${a.stand}.</div>`;
+  <div class="note">Zeigt nur deine <b>aktiven</b> Kampagnen (pausierte werden ausgeblendet). Das <b>Conversion-Tracking läuft seit 08.09.2026</b> — Anfragen werden seitdem gemessen, die Zahl ist aber noch klein und taugt für sich genommen nicht als Urteil über eine Kampagne. Stand der Ads-Zahlen: ${a.stand}.</div>`;
+}
+
+
+function renderMeta() {
+  const m = d.meta;
+  if (!m || m.status !== 'live') {
+    return `<div class="card pending"><p style="margin:0">📌 <b>Wird ergänzt.</b> ${(m && m.note) || 'Meta-Daten folgen.'}</p></div>`;
+  }
+  if (!m.adsets || !m.adsets.length) {
+    return `<div class="card pending"><p style="margin:0">📌 <b>Noch keine Auslieferung.</b> Der Zugriff steht, aber im Zeitraum wurde keine Anzeige ausgespielt.</p></div>`;
+  }
+  const t30 = m.total30, t7 = m.total7;
+  const cpv = t30.pageViews ? t30.spend / t30.pageViews : 0;
+  const rows = m.adsets.map((a) => {
+    const c = a.pageViews ? a.spend / a.pageViews : 0;
+    return `<tr><td>${a.adset || a.campaign}</td><td class="num">${nf(a.reach)}</td><td class="num">${nf(a.impressions)}</td><td class="num">${pf1(a.frequency)}</td><td class="num">${nf(a.pageViews)}</td><td class="num">${eur(a.spend)}</td><td class="num">${c ? eur(c) : '—'}</td></tr>`;
+  }).join('');
+  // Frequenz ueber 3 heisst in einem so kleinen Gebiet: dieselben Leute sehen die Anzeige zu oft.
+  const maxFreq = m.adsets.reduce((s, a) => Math.max(s, a.frequency || 0), 0);
+  const freqHint = maxFreq >= 3
+    ? `<br><b>Achtung Ermüdung:</b> Eine Anzeigengruppe kommt auf eine Häufigkeit von ${pf1(maxFreq)}. In einem kleinen Gebiet sehen dieselben Menschen die Anzeige dann oft — die Wirkung lässt nach.`
+    : '';
+  return `
+  <div class="grid">
+    <div class="card kpi"><div class="label">Erreichte Menschen · 30 Tage</div><div class="big">${nf(t30.reach)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.reach)} in den letzten 7 Tagen</span></div><div class="expl">Verschiedene Personen, die die Anzeige gesehen haben.</div></div>
+    <div class="card kpi"><div class="label">Seitenaufrufe · 30 Tage</div><div class="big">${nf(t30.pageViews)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.pageViews)} in den letzten 7 Tagen</span></div><div class="expl">So oft wurde die verlinkte Seite wirklich geöffnet.</div></div>
+    <div class="card kpi"><div class="label">Kosten · 30 Tage</div><div class="big">${eur(t30.spend)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${eur(t7.spend)} in den letzten 7 Tagen</span></div><div class="expl">Ausgaben bei Facebook und Instagram.</div></div>
+    <div class="card kpi"><div class="label">Ø Kosten pro Seitenaufruf</div><div class="big">${cpv ? eur(cpv) : '—'}</div><div class="expl">Was ein geöffneter Seitenaufruf im Schnitt kostet.</div></div>
+  </div>
+  <h2 style="margin-top:22px"><span class="em"></span>Anzeigengruppen im Detail <span class="muted" style="font-weight:400;font-size:.85rem">(letzte 30 Tage)</span></h2>
+  <div class="card scroll">
+    <table><thead><tr><th>Anzeigengruppe</th><th class="num">Erreicht</th><th class="num">Eingeblendet</th><th class="num">Häufigkeit</th><th class="num">Seitenaufrufe</th><th class="num">Kosten</th><th class="num">Ø/Aufruf</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+  </div>
+  <div class="note"><b>Kurz erklärt:</b> „Erreicht" sind verschiedene Menschen, „Eingeblendet" zählt jede Einblendung — dieselbe Person mehrfach. „Häufigkeit" ist beides geteilt: wie oft ein Mensch die Anzeige im Schnitt gesehen hat.${freqHint}<br><b>Warum Meta und Google Analytics hier abweichen:</b> Meta zählt jeden Klick selbst, Analytics erst nach Zustimmung zum Cookie-Banner. Die Analytics-Zahl liegt darum systematisch niedriger. Beides ist richtig, es wird nur Unterschiedliches gezählt.</div>`;
 }
 
 const html = `<meta charset="utf-8">
@@ -271,7 +307,7 @@ const html = `<meta charset="utf-8">
     <table><thead><tr><th>Aktion</th><th class="num">7 Tage</th><th class="num">28 Tage</th></tr></thead>
     <tbody>${leadRows()}</tbody></table>
   </div>
-  <div class="note">Das sind die messbaren „Türklinken-Bewegungen" auf der Website. <b>Hinweis:</b> Klicks auf Telefon/E-Mail werden erst gezählt, wenn Besucher dem Cookie-Banner zustimmen — deshalb stehen sie evtl. noch auf 0. Das behalten wir im Auge.</div>
+  <div class="note">Das sind die messbaren „Türklinken-Bewegungen" auf der Website. <b>Anmeldung Thementage</b> zählt jede abgeschickte Anmeldung — welchen Vortrag jemand dabei wählt, wird getrennt erfasst und hier bewusst <i>nicht</i> mitgezählt, sonst würde dieselbe Anmeldung doppelt erscheinen.<br><b>Wichtig für Vergleiche:</b> Auf der Anmeldeseite (forms.meier-shk.info) lädt die Messung <b>seit 15.09.2026 erst nach Zustimmung</b> zum Cookie-Banner. Zahlen von dieser Seite davor und danach sind deshalb nicht direkt vergleichbar — ein Rückgang ist hier kein Einbruch, sondern das Schließen einer Lücke. Klicks auf Telefon/E-Mail hängen aus demselben Grund an der Zustimmung.</div>
 
   <h2><span class="em"></span>Google-Suche (Sichtbarkeit) <span class="muted" style="font-weight:400;font-size:.85rem">(${dateOnly(d.dateInfo.scRange28[0])}–${dateOnly(d.dateInfo.scRange28[1])})</span></h2>
   <div class="grid">
@@ -291,12 +327,18 @@ const html = `<meta charset="utf-8">
   <h2><span class="em"></span>Google Ads (Anzeigen)</h2>
   ${renderAds()}
 
+  <h2><span class="em"></span>Meta-Anzeigen (Facebook &amp; Instagram)</h2>
+  ${renderMeta()}
+
   <h2><span class="em"></span>Kleines Wörterbuch</h2>
   <div class="card gloss">
     <dl>
       <dt>Besucher (Nutzer)</dt><dd>Verschiedene Menschen. Eine Person zählt pro Zeitraum nur einmal, egal wie oft sie kommt.</dd>
       <dt>Sitzung</dt><dd>Ein einzelner Besuch. Eine Person kann mehrere Sitzungen haben.</dd>
       <dt>Impression</dt><dd>Einmal in der Google-Suche angezeigt werden — noch ohne Klick.</dd>
+      <dt>Reichweite („Erreicht")</dt><dd>Bei Facebook/Instagram: wie viele <b>verschiedene</b> Menschen die Anzeige gesehen haben.</dd>
+      <dt>Häufigkeit</dt><dd>Wie oft ein einzelner Mensch dieselbe Anzeige im Schnitt gesehen hat. Ab etwa 3 wird es in einem kleinen Gebiet schnell zu viel.</dd>
+      <dt>Seitenaufruf (Landingpage-Aufruf)</dt><dd>Jemand hat die Anzeige geklickt <b>und</b> die Seite ist wirklich geladen. Ehrlicher als ein reiner Klick, bei dem viele wieder abspringen.</dd>
       <dt>Klickrate (CTR)</dt><dd>Klicks geteilt durch Impressionen. Zeigt, wie attraktiv dein Suchtreffer ist.</dd>
       <dt>Ø Position</dt><dd>Durchschnittlicher Rang in den Google-Ergebnissen. 1 = ganz oben. Kleiner = besser.</dd>
     </dl>

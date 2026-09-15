@@ -7,7 +7,10 @@ const { getAccessToken, ga4RunReport, scQuery, iso, daysAgo } = require('./lib')
 const LEAD_EVENTS = [
   'telefon_click', 'mail_click', 'termin_bad_ausstellung',
   'termin_heizung_infoabend', 'bad_angebot_absenden',
+  'thementag_anmeldung',
 ];
+// Bewusst NICHT in LEAD_EVENTS: 'thementag_vortrag'. Das ist nur die Wahl des Vortrags
+// innerhalb einer bereits gezaehlten Anmeldung - es mitzuzaehlen wuerde doppelt zaehlen.
 
 function num(v) { return v == null ? 0 : Number(v); }
 
@@ -123,6 +126,109 @@ async function fetchAds(token) {
   }
 }
 
+
+// --- Meta (Facebook/Instagram) Werbeanzeigen ---------------------------------
+// Liest die Kennzahlen ueber die Meta Marketing API. Das Zugriffstoken kommt
+// AUSSCHLIESSLICH aus der Umgebung (GitHub-Secret META_TOKEN) und steht nirgends
+// im Repository - das Repo ist oeffentlich.
+// Ohne Token liefert die Funktion sauber einen "pending"-Zustand, das Dashboard
+// baut dann ganz normal weiter und zeigt den Abschnitt als "wird ergaenzt".
+const META_ACT = 'act_713236902548592';
+const META_VER = 'v26.0';
+
+function metaAction(actions, type) {
+  if (!Array.isArray(actions)) return 0;
+  const hit = actions.find((a) => a.action_type === type);
+  return hit ? num(hit.value) : 0;
+}
+
+async function metaGet(edge, params, token) {
+  const qs = new URLSearchParams(Object.assign({ access_token: token }, params));
+  const res = await fetch(`https://graph.facebook.com/${META_VER}/${edge}?${qs}`);
+  const j = await res.json();
+  // Fehlermeldungen von Meta koennen das Token spiegeln - nur die Message durchreichen.
+  if (j.error) throw new Error(String(j.error.message || j.error.type || 'unbekannter Fehler'));
+  return j;
+}
+
+async function metaInsights(token, preset) {
+  const j = await metaGet(`${META_ACT}/insights`, {
+    level: 'adset',
+    fields: 'campaign_name,adset_name,impressions,reach,frequency,spend,clicks,actions',
+    date_preset: preset,
+    limit: '100',
+  }, token);
+  return (j.data || []).map((r) => ({
+    campaign: r.campaign_name || '',
+    adset: r.adset_name || '',
+    impressions: num(r.impressions),
+    reach: num(r.reach),
+    frequency: num(r.frequency),
+    spend: num(r.spend),
+    clicks: num(r.clicks),
+    linkClicks: metaAction(r.actions, 'link_click'),
+    pageViews: metaAction(r.actions, 'landing_page_view'),
+  }));
+}
+
+async function fetchMeta() {
+  const token = process.env.META_TOKEN;
+  if (!token) {
+    // Klartext fuer die oeffentliche Seite; der technische Hinweis bleibt im Build-Log.
+    console.log('Hinweis: META_TOKEN nicht gesetzt - Meta-Abschnitt bleibt im Wartezustand.');
+    return { status: 'pending', note: 'Der Zugang zu Meta wird gerade eingerichtet. Sobald er steht, erscheinen die Zahlen hier automatisch.' };
+  }
+  try {
+    const [rows30, rows7] = await Promise.all([
+      metaInsights(token, 'last_30d'),
+      metaInsights(token, 'last_7d'),
+    ]);
+    let campaigns = [];
+    try {
+      const c = await metaGet(`${META_ACT}/campaigns`, {
+        fields: 'name,effective_status,start_time,stop_time',
+        limit: '50',
+      }, token);
+      campaigns = (c.data || []).map((x) => ({
+        name: x.name, status: x.effective_status || '',
+        start: x.start_time || '', stop: x.stop_time || '',
+      }));
+    } catch (e) { /* Status ist nice-to-have, Zahlen zaehlen */ }
+
+    const by7 = {};
+    rows7.forEach((r) => { by7[r.campaign + '||' + r.adset] = r; });
+    const adsets = rows30.map((r) => {
+      const s = by7[r.campaign + '||' + r.adset] || {};
+      return Object.assign({}, r, {
+        spend7: s.spend || 0, impressions7: s.impressions || 0, pageViews7: s.pageViews || 0,
+      });
+    }).sort((a, b) => b.spend - a.spend);
+
+    const sum = (arr, k) => arr.reduce((s, x) => s + (x[k] || 0), 0);
+    const active = campaigns.filter((c) => c.status === 'ACTIVE' || c.status === 'IN_PROCESS');
+
+    return {
+      status: 'live',
+      adsets,
+      campaigns,
+      activeCount: active.length,
+      total30: {
+        impressions: sum(rows30, 'impressions'), reach: sum(rows30, 'reach'),
+        spend: sum(rows30, 'spend'), clicks: sum(rows30, 'clicks'),
+        linkClicks: sum(rows30, 'linkClicks'), pageViews: sum(rows30, 'pageViews'),
+      },
+      total7: {
+        impressions: sum(rows7, 'impressions'), reach: sum(rows7, 'reach'),
+        spend: sum(rows7, 'spend'), clicks: sum(rows7, 'clicks'),
+        linkClicks: sum(rows7, 'linkClicks'), pageViews: sum(rows7, 'pageViews'),
+      },
+    };
+  } catch (e) {
+    console.log('Meta-Abruf fehlgeschlagen:', e.message);
+    return { status: 'pending', note: 'Die Meta-Zahlen konnten gerade nicht abgerufen werden. Beim naechsten Lauf wird es erneut versucht.' };
+  }
+}
+
 (async () => {
   const token = await getAccessToken([
     'https://www.googleapis.com/auth/analytics.readonly',
@@ -160,6 +266,7 @@ async function fetchAds(token) {
   ]);
 
   const ads = await fetchAds(token);
+  const meta = await fetchMeta();
 
   const data = {
     generatedAt: new Date().toISOString(),
@@ -183,6 +290,7 @@ async function fetchAds(token) {
       })),
     },
     ads,
+    meta,
   };
 
   fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(data, null, 2));
@@ -191,5 +299,8 @@ async function fetchAds(token) {
   console.log('Anfragen 28T:', leads28.total, JSON.stringify(leads28.byEvent));
   console.log('SC Klicks 28T:', sc28.clicks, '| Impressionen:', sc28.impressions);
   console.log('Kanäle:', channels.map((c) => c.key + '=' + c.value).join(', '));
+  console.log('Meta:', meta.status, meta.status === 'live'
+    ? ('Anzeigengruppen=' + meta.adsets.length + ' Ausgaben30=' + meta.total30.spend.toFixed(2) + ' Seitenaufrufe30=' + meta.total30.pageViews)
+    : (meta.note || ''));
   console.log('Ads:', ads.status, ads.status === 'live' ? ('Kampagnen=' + ads.campaigns.length + ' Klicks28=' + ads.total28.clicks + ' Kosten28=' + ads.total28.cost.toFixed(2)) : (ads.note || ''));
 })().catch((e) => { console.error('FEHLER:', e.message); process.exit(1); });
