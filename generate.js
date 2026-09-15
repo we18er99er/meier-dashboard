@@ -131,7 +131,10 @@ function renderMeta() {
   const cpv = t30.pageViews ? t30.spend / t30.pageViews : 0;
   const rows = m.adsets.map((a) => {
     const c = a.pageViews ? a.spend / a.pageViews : 0;
-    return `<tr><td>${a.adset || a.campaign}</td><td class="num">${nf(a.reach)}</td><td class="num">${nf(a.impressions)}</td><td class="num">${pf1(a.frequency)}</td><td class="num">${nf(a.pageViews)}</td><td class="num">${eur(a.spend)}</td><td class="num">${c ? eur(c) : '—'}</td></tr>`;
+    const label = a.adset
+      ? `${a.adset}${a.campaign ? `<br><span class="muted" style="font-size:.78rem">${a.campaign}</span>` : ''}`
+      : (a.campaign || '—');
+    return `<tr><td>${label}</td><td class="num">${nf(a.reach)}</td><td class="num">${nf(a.impressions)}</td><td class="num">${pf1(a.frequency)}</td><td class="num">${nf(a.pageViews)}</td><td class="num">${eur(a.spend)}</td><td class="num">${c ? eur(c) : '—'}</td></tr>`;
   }).join('');
   // Frequenz ueber 3 heisst in einem so kleinen Gebiet: dieselben Leute sehen die Anzeige zu oft.
   const maxFreq = m.adsets.reduce((s, a) => Math.max(s, a.frequency || 0), 0);
@@ -150,7 +153,7 @@ function renderMeta() {
     <table><thead><tr><th>Anzeigengruppe</th><th class="num">Erreicht</th><th class="num">Eingeblendet</th><th class="num">Häufigkeit</th><th class="num">Seitenaufrufe</th><th class="num">Kosten</th><th class="num">Ø/Aufruf</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </div>
-  <div class="note"><b>Kurz erklärt:</b> „Erreicht" sind verschiedene Menschen, „Eingeblendet" zählt jede Einblendung — dieselbe Person mehrfach. „Häufigkeit" ist beides geteilt: wie oft ein Mensch die Anzeige im Schnitt gesehen hat.${freqHint}<br><b>Warum Meta und Google Analytics hier abweichen:</b> Meta zählt jeden Klick selbst, Analytics erst nach Zustimmung zum Cookie-Banner. Die Analytics-Zahl liegt darum systematisch niedriger. Beides ist richtig, es wird nur Unterschiedliches gezählt.</div>`;
+  <div class="note"><b>Kurz erklärt:</b> „Erreicht" sind verschiedene Menschen, „Eingeblendet" zählt jede Einblendung — dieselbe Person mehrfach. „Häufigkeit" ist beides geteilt: wie oft ein Mensch die Anzeige im Schnitt gesehen hat.${freqHint}<br><b>Seitenaufrufe bei 0?</b> Dann verfolgt die laufende Kampagne ein anderes Ziel — etwa Bewerbungen oder Nachrichten statt Klicks auf eine Webseite. Reichweite und Kosten stimmen trotzdem.<br><b>Warum Meta und Google Analytics hier abweichen:</b> Meta zählt jeden Klick selbst, Analytics erst nach Zustimmung zum Cookie-Banner. Die Analytics-Zahl liegt darum systematisch niedriger. Beides ist richtig, es wird nur Unterschiedliches gezählt.</div>`;
 }
 
 const html = `<meta charset="utf-8">
