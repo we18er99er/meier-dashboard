@@ -39,6 +39,10 @@ jobs:
       - name: Zahlen holen und Seite bauen
         env:
           GA_SA_KEY: ${{ secrets.GA_SA_KEY }}
+          # Nur-Lese-Token fuer die Meta Marketing API (Systemnutzer stax-reporting,
+          # Berechtigung ads_read). Fehlt es, bleibt der Meta-Abschnitt im Wartezustand
+          # und der Build laeuft trotzdem durch.
+          META_TOKEN: ${{ secrets.META_TOKEN }}
         run: |
           node fetch-all.js
           node generate.js
