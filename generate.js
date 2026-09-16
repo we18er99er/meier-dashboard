@@ -127,14 +127,18 @@ function renderMeta() {
   if (!m.adsets || !m.adsets.length) {
     return `<div class="card pending"><p style="margin:0">📌 <b>Noch keine Auslieferung.</b> Der Zugriff steht, aber im Zeitraum wurde keine Anzeige ausgespielt.</p></div>`;
   }
-  const t30 = m.total30, t7 = m.total7;
+  const t30 = m.total30, t7 = m.total7, th = m.totalToday || {};
   const cpv = t30.pageViews ? t30.spend / t30.pageViews : 0;
+  // "Heute" nur zeigen, wenn heute wirklich etwas lief - sonst steht ueberall eine 0
+  // und der Eindruck entsteht, es sei etwas kaputt.
+  const heuteAktiv = (th.impressions || 0) > 0 || (th.spend || 0) > 0;
+  const heute = (wert) => heuteAktiv ? `<div class="row2"><span class="muted" style="font-size:.8rem">heute: <b>${wert}</b></span></div>` : '';
   const rows = m.adsets.map((a) => {
     const c = a.pageViews ? a.spend / a.pageViews : 0;
     const label = a.adset
       ? `${a.adset}${a.campaign ? `<br><span class="muted" style="font-size:.78rem">${a.campaign}</span>` : ''}`
       : (a.campaign || '—');
-    return `<tr><td>${label}</td><td class="num">${nf(a.reach)}</td><td class="num">${nf(a.impressions)}</td><td class="num">${pf1(a.frequency)}</td><td class="num">${nf(a.pageViews)}</td><td class="num">${eur(a.spend)}</td><td class="num">${c ? eur(c) : '—'}</td></tr>`;
+    return `<tr><td>${label}</td><td class="num">${nf(a.reach)}</td><td class="num">${nf(a.impressions)}</td><td class="num">${pf1(a.frequency)}</td><td class="num">${nf(a.pageViews)}${a.pageViewsToday ? `<br><span class="muted" style="font-size:.78rem">heute ${nf(a.pageViewsToday)}</span>` : ''}</td><td class="num">${eur(a.spend)}${a.spendToday ? `<br><span class="muted" style="font-size:.78rem">heute ${eur(a.spendToday)}</span>` : ''}</td><td class="num">${c ? eur(c) : '—'}</td></tr>`;
   }).join('');
   // Frequenz ueber 3 heisst in einem so kleinen Gebiet: dieselben Leute sehen die Anzeige zu oft.
   const maxFreq = m.adsets.reduce((s, a) => Math.max(s, a.frequency || 0), 0);
@@ -143,9 +147,9 @@ function renderMeta() {
     : '';
   return `
   <div class="grid">
-    <div class="card kpi"><div class="label">Erreichte Menschen · 30 Tage</div><div class="big">${nf(t30.reach)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.reach)} in den letzten 7 Tagen</span></div><div class="expl">Verschiedene Personen, die die Anzeige gesehen haben.</div></div>
-    <div class="card kpi"><div class="label">Seitenaufrufe · 30 Tage</div><div class="big">${nf(t30.pageViews)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.pageViews)} in den letzten 7 Tagen</span></div><div class="expl">So oft wurde die verlinkte Seite wirklich geöffnet.</div></div>
-    <div class="card kpi"><div class="label">Kosten · 30 Tage</div><div class="big">${eur(t30.spend)}</div><div class="row2"><span class="muted" style="font-size:.8rem">${eur(t7.spend)} in den letzten 7 Tagen</span></div><div class="expl">Ausgaben bei Facebook und Instagram.</div></div>
+    <div class="card kpi"><div class="label">Erreichte Menschen · 30 Tage</div><div class="big">${nf(t30.reach)}</div>${heute(nf(th.reach))}<div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.reach)} in den letzten 7 Tagen</span></div><div class="expl">Verschiedene Personen, die die Anzeige gesehen haben.</div></div>
+    <div class="card kpi"><div class="label">Seitenaufrufe · 30 Tage</div><div class="big">${nf(t30.pageViews)}</div>${heute(nf(th.pageViews))}<div class="row2"><span class="muted" style="font-size:.8rem">${nf(t7.pageViews)} in den letzten 7 Tagen</span></div><div class="expl">So oft wurde die verlinkte Seite wirklich geöffnet.</div></div>
+    <div class="card kpi"><div class="label">Kosten · 30 Tage</div><div class="big">${eur(t30.spend)}</div>${heute(eur(th.spend))}<div class="row2"><span class="muted" style="font-size:.8rem">${eur(t7.spend)} in den letzten 7 Tagen</span></div><div class="expl">Ausgaben bei Facebook und Instagram.</div></div>
     <div class="card kpi"><div class="label">Ø Kosten pro Seitenaufruf</div><div class="big">${cpv ? eur(cpv) : '—'}</div><div class="expl">Was ein geöffneter Seitenaufruf im Schnitt kostet.</div></div>
   </div>
   <h2 style="margin-top:22px"><span class="em"></span>Anzeigengruppen im Detail <span class="muted" style="font-weight:400;font-size:.85rem">(letzte 30 Tage)</span></h2>
@@ -153,7 +157,7 @@ function renderMeta() {
     <table><thead><tr><th>Anzeigengruppe</th><th class="num">Erreicht</th><th class="num">Eingeblendet</th><th class="num">Häufigkeit</th><th class="num">Seitenaufrufe</th><th class="num">Kosten</th><th class="num">Ø/Aufruf</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </div>
-  <div class="note"><b>Kurz erklärt:</b> „Erreicht" sind verschiedene Menschen, „Eingeblendet" zählt jede Einblendung — dieselbe Person mehrfach. „Häufigkeit" ist beides geteilt: wie oft ein Mensch die Anzeige im Schnitt gesehen hat.${freqHint}<br><b>Seitenaufrufe bei 0?</b> Dann verfolgt die laufende Kampagne ein anderes Ziel — etwa Bewerbungen oder Nachrichten statt Klicks auf eine Webseite. Reichweite und Kosten stimmen trotzdem.<br><b>Warum Meta und Google Analytics hier abweichen:</b> Meta zählt jeden Klick selbst, Analytics erst nach Zustimmung zum Cookie-Banner. Die Analytics-Zahl liegt darum systematisch niedriger. Beides ist richtig, es wird nur Unterschiedliches gezählt.</div>`;
+  <div class="note"><b>Kurz erklärt:</b> „Erreicht" sind verschiedene Menschen, „Eingeblendet" zählt jede Einblendung — dieselbe Person mehrfach. „Häufigkeit" ist beides geteilt: wie oft ein Mensch die Anzeige im Schnitt gesehen hat.${freqHint}<br><b>Warum „30 Tage" den heutigen Tag nicht enthält:</b> Meta rechnet Zeiträume bis gestern ab. Eine Kampagne, die heute startet, taucht in der 30-Tage-Spalte erst morgen auf — deshalb steht der heutige Stand zusätzlich darunter.<br><b>Seitenaufrufe bei 0?</b> Dann verfolgt die laufende Kampagne ein anderes Ziel — etwa Bewerbungen oder Nachrichten statt Klicks auf eine Webseite. Reichweite und Kosten stimmen trotzdem.<br><b>Warum Meta und Google Analytics hier abweichen:</b> Meta zählt jeden Klick selbst, Analytics erst nach Zustimmung zum Cookie-Banner. Die Analytics-Zahl liegt darum systematisch niedriger. Beides ist richtig, es wird nur Unterschiedliches gezählt.</div>`;
 }
 
 const html = `<meta charset="utf-8">

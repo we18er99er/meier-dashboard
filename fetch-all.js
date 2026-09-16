@@ -179,9 +179,13 @@ async function fetchMeta() {
     return { status: 'pending', note: 'Der Zugang zu Meta wird gerade eingerichtet. Sobald er steht, erscheinen die Zahlen hier automatisch.' };
   }
   try {
-    const [rows30, rows7] = await Promise.all([
+    // 'last_30d' und 'last_7d' enden bei Meta GESTERN. Eine Kampagne, die heute
+    // startet, waere damit erst morgen sichtbar - bei kurzen Kampagnen ein blinder
+    // Fleck. Deshalb 'today' zusaetzlich abfragen.
+    const [rows30, rows7, rowsToday] = await Promise.all([
       metaInsights(token, 'last_30d'),
       metaInsights(token, 'last_7d'),
+      metaInsights(token, 'today').catch(() => []),
     ]);
     let campaigns = [];
     try {
@@ -195,14 +199,28 @@ async function fetchMeta() {
       }));
     } catch (e) { /* Status ist nice-to-have, Zahlen zaehlen */ }
 
-    const by7 = {};
-    rows7.forEach((r) => { by7[r.campaign + '||' + r.adset] = r; });
-    const adsets = rows30.map((r) => {
-      const s = by7[r.campaign + '||' + r.adset] || {};
-      return Object.assign({}, r, {
+    const key = (r) => r.campaign + '||' + r.adset;
+    const by7 = {}; rows7.forEach((r) => { by7[key(r)] = r; });
+    const byToday = {}; rowsToday.forEach((r) => { byToday[key(r)] = r; });
+
+    // Eine Anzeigengruppe, die NUR heute lief, steht nicht in rows30 - sonst fiele
+    // sie ganz aus der Tabelle. Deshalb die Namen aus beiden Listen vereinen.
+    const seen = new Set();
+    const alle = [];
+    rows30.concat(rowsToday).forEach((r) => {
+      if (seen.has(key(r))) return;
+      seen.add(key(r));
+      const base = rows30.find((x) => key(x) === key(r))
+        || { campaign: r.campaign, adset: r.adset, impressions: 0, reach: 0, frequency: 0, spend: 0, clicks: 0, linkClicks: 0, pageViews: 0 };
+      const s = by7[key(r)] || {};
+      const h = byToday[key(r)] || {};
+      alle.push(Object.assign({}, base, {
         spend7: s.spend || 0, impressions7: s.impressions || 0, pageViews7: s.pageViews || 0,
-      });
-    }).sort((a, b) => b.spend - a.spend);
+        spendToday: h.spend || 0, impressionsToday: h.impressions || 0, pageViewsToday: h.pageViews || 0,
+        reachToday: h.reach || 0,
+      }));
+    });
+    const adsets = alle.sort((a, b) => (b.spend + b.spendToday) - (a.spend + a.spendToday));
 
     const sum = (arr, k) => arr.reduce((s, x) => s + (x[k] || 0), 0);
     const active = campaigns.filter((c) => c.status === 'ACTIVE' || c.status === 'IN_PROCESS');
@@ -221,6 +239,11 @@ async function fetchMeta() {
         impressions: sum(rows7, 'impressions'), reach: sum(rows7, 'reach'),
         spend: sum(rows7, 'spend'), clicks: sum(rows7, 'clicks'),
         linkClicks: sum(rows7, 'linkClicks'), pageViews: sum(rows7, 'pageViews'),
+      },
+      totalToday: {
+        impressions: sum(rowsToday, 'impressions'), reach: sum(rowsToday, 'reach'),
+        spend: sum(rowsToday, 'spend'), clicks: sum(rowsToday, 'clicks'),
+        linkClicks: sum(rowsToday, 'linkClicks'), pageViews: sum(rowsToday, 'pageViews'),
       },
     };
   } catch (e) {
@@ -300,7 +323,7 @@ async function fetchMeta() {
   console.log('SC Klicks 28T:', sc28.clicks, '| Impressionen:', sc28.impressions);
   console.log('Kanäle:', channels.map((c) => c.key + '=' + c.value).join(', '));
   console.log('Meta:', meta.status, meta.status === 'live'
-    ? ('Anzeigengruppen=' + meta.adsets.length + ' Ausgaben30=' + meta.total30.spend.toFixed(2) + ' Seitenaufrufe30=' + meta.total30.pageViews)
+    ? ('Anzeigengruppen=' + meta.adsets.length + ' Ausgaben30=' + meta.total30.spend.toFixed(2) + ' Seitenaufrufe30=' + meta.total30.pageViews + ' | heute: ' + meta.totalToday.spend.toFixed(2) + ' EUR / ' + meta.totalToday.pageViews + ' Seitenaufrufe')
     : (meta.note || ''));
   console.log('Ads:', ads.status, ads.status === 'live' ? ('Kampagnen=' + ads.campaigns.length + ' Klicks28=' + ads.total28.clicks + ' Kosten28=' + ads.total28.cost.toFixed(2)) : (ads.note || ''));
 })().catch((e) => { console.error('FEHLER:', e.message); process.exit(1); });
